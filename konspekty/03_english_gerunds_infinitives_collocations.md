@@ -212,8 +212,11 @@
 <summary><b>Ответы</b></summary>
 
 **A.** 1 hearing · 2 to answer · 3 waiting · 4 to go · 5 taking · 6 stay · 7 complaining · 8 watch · 9 to rewrite · 10 to be
+
 **B.** 11 locking · 12 to buy · 13 to buy · 14 eating · 15 drinking · 16 not studying
+
 **C.** 17 make · 18 do · 19 make · 20 do · 21 make · 22 do
+
 **D.** 23 heavy · 24 keep · 25 pay · 26 highly · 27 bitterly · 28 take
 </details>
 
