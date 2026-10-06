@@ -26,6 +26,14 @@
 
 ## Установка на сервер (≈15 минут)
 
+**Быстрый путь:** пошаговый план с ценами — [SETUP.md](SETUP.md). На сервере достаточно одной команды:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MissEmily10/StudyingTool/master/install.sh | bash
+```
+
+Или вручную:
+
 ```bash
 # 1. Docker
 curl -fsSL https://get.docker.com | sh
