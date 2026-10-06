@@ -1,0 +1,13 @@
+services:
+  studytool:
+    build:
+      context: .
+      args:
+        LOCAL_WHISPER: "${LOCAL_WHISPER:-0}"
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    shm_size: "1gb"   # Chromium'у нужна общая память, иначе вкладка вебинара падает
+    restart: unless-stopped

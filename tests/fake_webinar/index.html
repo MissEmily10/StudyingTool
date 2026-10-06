@@ -1,0 +1,32 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Fake webinar</title>
+<body>
+<div id="join">
+  <h2>Вход в мероприятие</h2>
+  <input name="name" placeholder="Ваше имя">
+  <label><input type="checkbox" id="agree"> Согласен на обработку данных</label>
+  <button id="go">Войти</button>
+</div>
+<div id="room" hidden><h2>Урок идёт</h2><p id="who"></p></div>
+<script>
+// Имитация MTS Link: после входа учитель «говорит» через WebRTC (тон 440 Гц), через ENDS_AFTER секунд эфир завершается.
+const ENDS_AFTER = Number(new URLSearchParams(location.search).get("ends") || 25);
+document.getElementById("go").onclick = async () => {
+  const name = document.querySelector("input[name=name]").value;
+  if (!name || !document.getElementById("agree").checked) { alert("Заполните имя и согласие"); return; }
+  document.getElementById("join").hidden = true;
+  document.getElementById("room").hidden = false;
+  document.getElementById("who").textContent = "Вы вошли как " + name;
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator(); osc.frequency.value = 440;
+  const dst = ctx.createMediaStreamDestination(); osc.connect(dst); osc.start();
+  const a = new RTCPeerConnection(), b = new RTCPeerConnection();
+  a.onicecandidate = e => e.candidate && b.addIceCandidate(e.candidate);
+  b.onicecandidate = e => e.candidate && a.addIceCandidate(e.candidate);
+  b.ontrack = e => { const el = new Audio(); el.srcObject = e.streams[0]; el.play(); };
+  dst.stream.getTracks().forEach(t => a.addTrack(t, dst.stream));
+  await a.setLocalDescription(await a.createOffer()); await b.setRemoteDescription(a.localDescription);
+  await b.setLocalDescription(await b.createAnswer()); await a.setRemoteDescription(b.localDescription);
+  setTimeout(() => { document.getElementById("room").innerHTML = "<h2>Мероприятие завершено</h2>"; osc.stop(); }, ENDS_AFTER * 1000);
+};
+</script>
+</body></html>

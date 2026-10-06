@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Новый урок</h2>
+  <form method="post" action="/lessons" enctype="multipart/form-data" class="form">
+    <div class="row">
+      <label>Предмет *<input name="subject" required placeholder="История" list="subjects"></label>
+      <label>Тема<input name="title" placeholder="Россия в 1917 году"></label>
+    </div>
+    <datalist id="subjects">
+      <option>Алгебра</option><option>Геометрия</option><option>Русский язык</option><option>Литература</option>
+      <option>Английский язык</option><option>История</option><option>Обществознание</option><option>Биология</option>
+      <option>Химия</option><option>Физика</option><option>География</option><option>Информатика</option>
+    </datalist>
+    <label>Преподаватель<input name="teacher" placeholder="Фамилия И. О."></label>
+
+    <fieldset>
+      <legend>🎥 Вебинар MTS Link</legend>
+      <label>Ссылка на комнату<input name="webinar_url" type="url" placeholder="https://my.mts-link.ru/j/..."></label>
+      <div class="choices">
+        <label class="inline"><input type="radio" name="start_mode" value="now" checked> зайти сейчас</label>
+        <label class="inline"><input type="radio" name="start_mode" value="at"> по расписанию:</label>
+        <input type="datetime-local" name="starts_at" value="{{ now }}">
+      </div>
+      <p class="hint">Бот зайдёт за 2 минуты до начала, запишет звук и остановится, когда эфир закончится.</p>
+    </fieldset>
+
+    <details>
+      <summary>Или уже есть запись / только материалы</summary>
+      <label>Файл записи (аудио или видео)<input type="file" name="audio_file" accept="audio/*,video/*"></label>
+    </details>
+
+    <fieldset>
+      <legend>📎 Материалы урока (по желанию)</legend>
+      <label>Ссылка на PDF-презентацию<input name="materials_url" type="url" placeholder="https://storage01.eljur.ru/..."></label>
+      <label>или файл PDF<input type="file" name="materials_file" accept="application/pdf"></label>
+    </fieldset>
+
+    <label>Что задали / на что обратить внимание
+      <textarea name="notes" rows="2" placeholder="Выучить углеводы и липиды, повторить осмос"></textarea>
+    </label>
+    <button type="submit" class="btn primary">Создать</button>
+  </form>
+</section>
+
+<section>
+  <h2>Уроки</h2>
+  {% if not lessons %}<p class="muted">Пока пусто.</p>{% endif %}
+  <ul class="lessons">
+  {% for l in lessons %}
+    <li>
+      <a href="/lessons/{{ l.id }}">
+        <span class="subj">{{ l.subject }}</span>
+        <span class="title">{{ l.title or "без темы" }}</span>
+        <span class="when muted">{{ (l.starts_at or l.created_at) | dt }}</span>
+        <span class="badge s-{{ l.status }}">{{ STATUSES.get(l.status, l.status) }}</span>
+      </a>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

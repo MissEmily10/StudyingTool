@@ -1,6 +1,6 @@
 """Конспект (.md) → PDF для печати: страницы A5, по две на листе A4 (альбомная ориентация).
 
-Использование: python3 tools/print_a5.py konspekty/*.md
+Использование из командной строки: python3 -m app.printing konspekty/*.md
 Результат: konspekty/print/<имя>_A4x2.pdf
 """
 import asyncio
@@ -12,7 +12,8 @@ import markdown
 from playwright.async_api import async_playwright
 from pypdf import PageObject, PdfReader, PdfWriter, Transformation
 
-CHROMIUM = "/opt/pw-browsers/chromium"
+from . import config
+
 A4_W, A4_H = 841.89, 595.28  # A4 альбомная, в пунктах
 A5_W = A4_W / 2
 
@@ -60,15 +61,16 @@ def prepare(md: str) -> str:
     return "\n".join(out)
 
 
-def to_html(md_path: Path) -> str:
-    body = markdown.markdown(prepare(md_path.read_text(encoding="utf-8")),
+def to_html(md_text: str) -> str:
+    body = markdown.markdown(prepare(md_text),
                              extensions=["tables", "fenced_code", "sane_lists"])
     return f"<!doctype html><html lang='ru'><meta charset='utf-8'><style>{CSS}</style><body>{body}</body></html>"
 
 
 async def render_a5(html: str, out: Path) -> None:
     async with async_playwright() as p:
-        browser = await p.chromium.launch(executable_path=CHROMIUM)
+        launch = {"executable_path": config.CHROMIUM_PATH} if config.CHROMIUM_PATH else {"channel": "chromium"}
+        browser = await p.chromium.launch(**launch)
         page = await browser.new_page()
         await page.set_content(html, wait_until="load")
         await page.pdf(path=str(out), prefer_css_page_size=True, display_header_footer=True,
@@ -93,15 +95,21 @@ def two_up(a5_pdf: Path, out: Path) -> int:
     return len(pages)
 
 
+async def build_print_pdf(md_text: str, out: Path) -> int:
+    """Markdown → PDF A4 (две страницы A5 на листе). Возвращает число страниц A5."""
+    a5 = out.with_name(out.stem + "_A5.pdf")
+    await render_a5(to_html(md_text), a5)
+    n = two_up(a5, out)
+    a5.unlink()
+    return n
+
+
 def main() -> None:
     for arg in sys.argv[1:]:
         src = Path(arg)
         out_dir = src.parent / "print"
         out_dir.mkdir(exist_ok=True)
-        a5 = out_dir / f"{src.stem}_A5.pdf"
-        asyncio.run(render_a5(to_html(src), a5))
-        n = two_up(a5, out_dir / f"{src.stem}_A4x2.pdf")
-        a5.unlink()
+        n = asyncio.run(build_print_pdf(src.read_text(encoding="utf-8"), out_dir / f"{src.stem}_A4x2.pdf"))
         print(f"{src.name}: {n} стр. A5 → {(n + 1) // 2} лист(ов) A4")
 
 

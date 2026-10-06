@@ -1,0 +1,2 @@
+# Только если TRANSCRIBE_PROVIDER=local (распознавание на самом сервере, без облачного API).
+faster-whisper

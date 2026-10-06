@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ l.subject }} — {{ l.title or "урок" }}{% endblock %}
+{% block content %}
+<p><a href="/">← все уроки</a></p>
+<section class="card">
+  <h1>{{ l.subject }}{% if l.title %}. {{ l.title }}{% endif %}</h1>
+  <p class="muted">
+    {% if l.teacher %}{{ l.teacher }} · {% endif %}{{ (l.starts_at or l.created_at) | dt }}
+  </p>
+  <p>Статус: <span id="status" class="badge s-{{ l.status }}">{{ STATUSES.get(l.status, l.status) }}</span></p>
+  {% if l.error %}<p class="error">⚠️ {{ l.error }}</p>{% endif %}
+
+  <div class="actions">
+    {% if l.status in ("scheduled", "joining", "recording") %}
+      <form method="post" action="/lessons/{{ l.id }}/stop">
+        <button class="btn danger">{% if l.status == "scheduled" %}Отменить запись{% else %}⏹ Остановить запись{% endif %}</button>
+      </form>
+    {% endif %}
+    {% if l.konspekt %}
+      <a class="btn primary" href="/lessons/{{ l.id }}/print.pdf">🖨 PDF для печати (A5 ×2 на A4)</a>
+      <a class="btn" href="/lessons/{{ l.id }}/konspekt.md">⬇ Markdown</a>
+    {% endif %}
+    {% if l.status in ("done", "error") %}
+      <form method="post" action="/lessons/{{ l.id }}/retry">
+        <button class="btn">↻ Пересоздать конспект</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if l.status in ("scheduled", "joining", "recording") or has_shot %}
+<section class="card">
+  <h2>🤖 Что видит бот</h2>
+  {% if has_shot %}
+    <img id="shot" class="shot" src="/lessons/{{ l.id }}/bot.png?t={{ l.updated_at }}" alt="скриншот бота">
+  {% else %}
+    <p class="muted">Скриншот появится, когда бот откроет вебинар.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if konspekt_html %}
+<section class="card konspekt">
+  {{ konspekt_html | safe }}
+</section>
+<section class="card">
+  <details>
+    <summary>✏️ Редактировать конспект</summary>
+    <form method="post" action="/lessons/{{ l.id }}/edit">
+      <textarea name="konspekt" rows="24" class="mono">{{ l.konspekt }}</textarea>
+      <button class="btn primary">Сохранить</button>
+    </form>
+  </details>
+</section>
+{% endif %}
+
+<section class="card">
+  <details {% if not l.konspekt %}open{% endif %}>
+    <summary>Журнал</summary>
+    <pre id="log" class="log">{{ l.log }}</pre>
+  </details>
+  <div class="actions small">
+    {% if has_audio %}<a href="/lessons/{{ l.id }}/audio">🎧 запись</a>{% endif %}
+    {% if l.transcript %}<a href="/lessons/{{ l.id }}/transcript.txt">📄 расшифровка</a>{% endif %}
+    {% if l.transcript and l.status in ("done", "error") %}
+      <form method="post" action="/lessons/{{ l.id }}/retry" class="inline">
+        <input type="hidden" name="redo_transcript" value="1">
+        <button class="link">распознать заново</button>
+      </form>
+    {% endif %}
+    {% if l.status not in ("joining", "recording") %}
+      <form method="post" action="/lessons/{{ l.id }}/delete" class="inline"
+            onsubmit="return confirm('Удалить урок?')">
+        <button class="link danger">удалить урок</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if l.status not in ("done", "error") %}
+<script>
+  // Пока урок в работе — обновляем статус и журнал, а при смене статуса перезагружаем страницу.
+  const initial = "{{ l.status }}";
+  setInterval(async () => {
+    try {
+      const r = await fetch("/lessons/{{ l.id }}/status");
+      const s = await r.json();
+      if (s.status !== initial) return location.reload();
+      document.getElementById("log").textContent = s.log;
+      const shot = document.getElementById("shot");
+      if (shot) shot.src = "/lessons/{{ l.id }}/bot.png?t=" + Date.now();
+    } catch (e) {}
+  }, 8000);
+</script>
+{% endif %}
+{% endblock %}
