@@ -76,7 +76,8 @@ def _local_segments(chunk: Path) -> list[tuple[float, str]]:
     global _local_model
     if _local_model is None:
         from faster_whisper import WhisperModel
-        _local_model = WhisperModel(config.LOCAL_WHISPER_MODEL, device="cpu", compute_type="int8")
+        _local_model = WhisperModel(config.LOCAL_WHISPER_MODEL, device="cpu", compute_type="int8",
+                                    cpu_threads=config.WHISPER_THREADS)
     segments, _ = _local_model.transcribe(str(chunk), language="ru", vad_filter=True)
     return [(s.start, s.text) for s in segments]
 

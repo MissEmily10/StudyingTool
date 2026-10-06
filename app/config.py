@@ -18,14 +18,16 @@ SILENCE_STOP_MINUTES = int(os.environ.get("SILENCE_STOP_MINUTES", "10"))
 CHROMIUM_PATH = os.environ.get("CHROMIUM_PATH") or None
 
 # Распознавание речи: "api" (OpenAI-совместимый Whisper API: OpenAI, Groq и т.п.) или "local" (faster-whisper).
-TRANSCRIBE_PROVIDER = os.environ.get("TRANSCRIBE_PROVIDER", "api")
+TRANSCRIBE_PROVIDER = os.environ.get("TRANSCRIBE_PROVIDER", "local")
 TRANSCRIBE_API_KEY = os.environ.get("TRANSCRIBE_API_KEY", "")
 TRANSCRIBE_BASE_URL = os.environ.get("TRANSCRIBE_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 TRANSCRIBE_MODEL = os.environ.get("TRANSCRIBE_MODEL", "whisper-1")
 LOCAL_WHISPER_MODEL = os.environ.get("LOCAL_WHISPER_MODEL", "large-v3-turbo")
+# Сколько ядер отдать распознаванию: одно оставляем боту, чтобы запись следующего урока не прерывалась.
+WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "0")) or max(1, (os.cpu_count() or 2) - 1)
 
 # Конспекты: Claude API (ключ в ANTHROPIC_API_KEY).
-CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-5-5")
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "high")
 
 TIMEZONE = os.environ.get("TZ", "Europe/Moscow")

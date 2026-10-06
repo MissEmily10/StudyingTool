@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        LOCAL_WHISPER: "${LOCAL_WHISPER:-0}"
+        LOCAL_WHISPER: "${LOCAL_WHISPER:-1}"
     env_file: .env
     ports:
       - "8000:8000"

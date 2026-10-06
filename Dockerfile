@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-ARG LOCAL_WHISPER=0
+ARG LOCAL_WHISPER=1
 ENV PYTHONUNBUFFERED=1 DATA_DIR=/data TZ=Europe/Moscow
 
 RUN apt-get update \
@@ -10,7 +10,8 @@ RUN apt-get update \
 WORKDIR /srv
 COPY requirements.txt requirements-local-whisper.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
- && if [ "$LOCAL_WHISPER" = "1" ]; then pip install --no-cache-dir -r requirements-local-whisper.txt; fi \
+ && if [ "$LOCAL_WHISPER" = "1" ]; then pip install --no-cache-dir -r requirements-local-whisper.txt \
+      && python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3-turbo', device='cpu', compute_type='int8')"; fi \
  && playwright install --with-deps chromium
 
 COPY app ./app
