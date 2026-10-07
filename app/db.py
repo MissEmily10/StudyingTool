@@ -12,6 +12,7 @@ STATUSES = {
     "queued": "В очереди на обработку",
     "transcribing": "Распознаю речь",
     "summarizing": "Пишу конспект",
+    "waiting": "Ждёт конспекта от Claude",
     "done": "Готово",
     "error": "Ошибка",
 }

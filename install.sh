@@ -25,8 +25,10 @@ command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git;
 say "2/5 Скачиваю приложение в $DIR"
 if [ -d "$DIR/.git" ]; then
   git -C "$DIR" pull --ff-only
-else
-  git clone "$REPO" "$DIR"
+elif ! git clone -q "$REPO" "$DIR" 2>/dev/null; then
+  # репозиторий закрытый — нужен токен
+  ask "Репозиторий закрытый. Токен GitHub (github_pat_...)" GITHUB_TOKEN ""
+  git clone -q "https://x-access-token:${GITHUB_TOKEN}@github.com/MissEmily10/StudyingTool.git" "$DIR"
 fi
 cd "$DIR"
 
@@ -36,13 +38,13 @@ if [ ! -f .env ]; then
   ask "Логин для входа на сайт" APP_USER "student"
   ask "Пароль для входа на сайт (Enter — придумаю сам)" APP_PASSWORD ""
   [ -n "$APP_PASSWORD" ] || APP_PASSWORD=$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 16)
-  ask "Ключ Claude API (начинается с sk-ant-)" ANTHROPIC_API_KEY ""
+  [ -n "${GITHUB_TOKEN:-}" ] || ask "Токен GitHub (github_pat_..., с правом Contents: Read and write)" GITHUB_TOKEN ""
   cp .env.example .env
-  python3 - "$BOT_NAME" "$APP_USER" "$APP_PASSWORD" "$ANTHROPIC_API_KEY" <<'PY'
+  python3 - "$BOT_NAME" "$APP_USER" "$APP_PASSWORD" "$GITHUB_TOKEN" <<'PY'
 import sys, re
-bot, user, pw, key = sys.argv[1:]
+bot, user, pw, token = sys.argv[1:]
 s = open(".env", encoding="utf-8").read()
-for k, v in (("BOT_NAME", bot), ("APP_USER", user), ("APP_PASSWORD", pw), ("ANTHROPIC_API_KEY", key)):
+for k, v in (("BOT_NAME", bot), ("APP_USER", user), ("APP_PASSWORD", pw), ("GITHUB_TOKEN", token)):
     s = re.sub(rf"^{k}=.*$", f"{k}={v}", s, flags=re.M)
 open(".env", "w", encoding="utf-8").write(s)
 PY
@@ -62,7 +64,7 @@ check() {  # check "Название" URL [код, который означае
   else echo "  ✓ $1"; fi
 }
 check "MTS Link" https://my.mts-link.ru/
-check "Claude API" https://api.anthropic.com/v1/models 403
+check "GitHub" https://github.com/
 check "Электронный журнал" https://storage01.eljur.ru/
 
 say "5/5 Собираю и запускаю (первый раз ~10 минут)"

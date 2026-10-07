@@ -3,7 +3,7 @@ import asyncio
 import traceback
 from datetime import datetime, timedelta
 
-from . import config, db, recorder, summarize, transcribe
+from . import config, db, recorder, summarize, sync, transcribe
 
 queue: asyncio.Queue[int]  # создаётся в start() внутри работающего цикла событий
 _recording_tasks: dict[int, asyncio.Task] = {}
@@ -52,11 +52,44 @@ def _process(lesson_id: int) -> None:
     if not transcript and not pdf:
         raise RuntimeError("Нет ни записи, ни материалов — не из чего делать конспект")
 
+    if config.SUMMARY_MODE != "api":
+        _hand_over(lesson_id, transcript, mat if mat.exists() else None)
+        return
+
     db.update(lesson_id, status="summarizing")
     progress("Пишу конспект")
     konspekt = summarize.build_konspekt(db.get(lesson_id), transcript, pdf)
     db.update(lesson_id, konspekt=konspekt, status="done", error="")
     progress("Конспект готов")
+
+
+def _hand_over(lesson_id: int, transcript: str, materials) -> None:
+    """Режим без API: отдаём расшифровку Claude через репозиторий и ждём konspekt.md."""
+    db.update(lesson_id, status="waiting", error="")
+    if not sync.enabled():
+        db.log(lesson_id, "GitHub не настроен: скачайте расшифровку и отправьте её в чат Claude, "
+                          "готовый конспект вставьте через «Вставить конспект»")
+        return
+    rel = sync.publish(db.get(lesson_id), transcript, materials)
+    db.log(lesson_id, f"Расшифровка отправлена в репозиторий ({rel}) — конспект появится, когда его соберёт Claude")
+
+
+async def sync_loop() -> None:
+    """Раз в несколько минут забираем из репозитория готовые конспекты."""
+    while True:
+        await asyncio.sleep(config.SYNC_MINUTES * 60)
+        waiting = [l["id"] for l in db.all_lessons() if l["status"] == "waiting"]
+        if not waiting or not sync.enabled():
+            continue
+        try:
+            found = await asyncio.to_thread(sync.collect_konspekts)
+        except Exception as e:
+            print("sync:", e)
+            continue
+        for lesson_id in waiting:
+            if lesson_id in found:
+                db.update(lesson_id, konspekt=found[lesson_id], status="done", error="")
+                db.log(lesson_id, "Конспект получен")
 
 
 async def worker() -> None:
@@ -106,7 +139,7 @@ def start() -> list[asyncio.Task]:
     global queue
     queue = asyncio.Queue()
     resume_after_restart()
-    return [asyncio.create_task(worker()), asyncio.create_task(scheduler())]
+    return [asyncio.create_task(worker()), asyncio.create_task(scheduler()), asyncio.create_task(sync_loop())]
 
 
 def resume_after_restart() -> None:

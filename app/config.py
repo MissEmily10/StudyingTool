@@ -26,7 +26,17 @@ LOCAL_WHISPER_MODEL = os.environ.get("LOCAL_WHISPER_MODEL", "large-v3-turbo")
 # Сколько ядер отдать распознаванию: одно оставляем боту, чтобы запись следующего урока не прерывалась.
 WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "0")) or max(1, (os.cpu_count() or 2) - 1)
 
-# Конспекты: Claude API (ключ в ANTHROPIC_API_KEY).
+# Кто пишет конспект:
+#   "session" — Claude в обычной подписке (без API): сервер кладёт расшифровку в репозиторий GitHub,
+#               Claude по расписанию пишет konspekt.md, сервер забирает его обратно;
+#   "api"     — сервер сам вызывает Claude API (нужен ANTHROPIC_API_KEY).
+SUMMARY_MODE = os.environ.get("SUMMARY_MODE", "session")
+GIT_REPO = os.environ.get("GIT_REPO", "github.com/MissEmily10/StudyingTool")
+GIT_BRANCH = os.environ.get("GIT_BRANCH", "master")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+SYNC_MINUTES = float(os.environ.get("SYNC_MINUTES", "3"))
+
+# Конспекты через Claude API (только для SUMMARY_MODE=api).
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "high")
 

@@ -4,7 +4,7 @@ ARG LOCAL_WHISPER=1
 ENV PYTHONUNBUFFERED=1 DATA_DIR=/data TZ=Europe/Moscow
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core fonts-noto-color-emoji tzdata \
+ && apt-get install -y --no-install-recommends ffmpeg git fonts-dejavu-core fonts-noto-color-emoji tzdata \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv

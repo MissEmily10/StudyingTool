@@ -9,6 +9,7 @@ import time
 
 os.environ.setdefault("DATA_DIR", tempfile.mkdtemp(prefix="studytool-app-"))
 os.environ["APP_PASSWORD"] = "secret"
+os.environ["SUMMARY_MODE"] = "api"  # этот тест проверяет режим с API (Claude подменён заглушкой)
 
 from fastapi.testclient import TestClient  # noqa: E402
 

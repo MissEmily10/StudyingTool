@@ -179,8 +179,11 @@ async def retry(lesson_id: int, redo_transcript: str = Form("")):
 
 @app.post("/lessons/{lesson_id}/edit")
 def edit_konspekt(lesson_id: int, konspekt: str = Form(...)):
-    lesson_or_404(lesson_id)
-    db.update(lesson_id, konspekt=konspekt.replace("\r\n", "\n"))
+    lesson = lesson_or_404(lesson_id)
+    fields = {"konspekt": konspekt.replace("\r\n", "\n").strip() + "\n"}
+    if lesson["status"] in ("waiting", "error") and fields["konspekt"].strip():
+        fields.update(status="done", error="")
+    db.update(lesson_id, **fields)
     return RedirectResponse(f"/lessons/{lesson_id}", status_code=303)
 
 

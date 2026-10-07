@@ -20,7 +20,7 @@
       <a class="btn primary" href="/lessons/{{ l.id }}/print.pdf">🖨 PDF для печати (A5 ×2 на A4)</a>
       <a class="btn" href="/lessons/{{ l.id }}/konspekt.md">⬇ Markdown</a>
     {% endif %}
-    {% if l.status in ("done", "error") %}
+    {% if l.status in ("done", "error", "waiting") %}
       <form method="post" action="/lessons/{{ l.id }}/retry">
         <button class="btn">↻ Пересоздать конспект</button>
       </form>
@@ -36,6 +36,20 @@
   {% else %}
     <p class="muted">Скриншот появится, когда бот откроет вебинар.</p>
   {% endif %}
+</section>
+{% endif %}
+
+{% if l.status == "waiting" %}
+<section class="card">
+  <h2>⏳ Ждёт конспекта</h2>
+  <p>Расшифровка готова. Конспект соберёт Claude по расписанию (или напишите в Claude: «сделай конспекты из lessons/»).
+     Как только он появится в репозитории, страница обновится сама.</p>
+  <p class="muted">Без GitHub: откройте <a href="/lessons/{{ l.id }}/transcript.txt">расшифровку</a>, отправьте её в чат Claude
+     и вставьте готовый конспект сюда:</p>
+  <form method="post" action="/lessons/{{ l.id }}/edit">
+    <textarea name="konspekt" rows="8" class="mono" placeholder="Вставьте конспект (Markdown)"></textarea>
+    <button class="btn primary">Сохранить конспект</button>
+  </form>
 </section>
 {% endif %}
 
@@ -62,7 +76,7 @@
   <div class="actions small">
     {% if has_audio %}<a href="/lessons/{{ l.id }}/audio">🎧 запись</a>{% endif %}
     {% if l.transcript %}<a href="/lessons/{{ l.id }}/transcript.txt">📄 расшифровка</a>{% endif %}
-    {% if l.transcript and l.status in ("done", "error") %}
+    {% if l.transcript and l.status in ("done", "error", "waiting") %}
       <form method="post" action="/lessons/{{ l.id }}/retry" class="inline">
         <input type="hidden" name="redo_transcript" value="1">
         <button class="link">распознать заново</button>
