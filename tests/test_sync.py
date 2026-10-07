@@ -62,6 +62,7 @@ def main_test():
         assert meta["server_lesson_id"] == lid and meta["notes"] == "повторить осмос", meta
         assert "осмос" in (f / "transcript.txt").read_text() and (f / "materials.pdf").exists()
         (f / "konspekt.md").write_text("# Биология. Осмос\n\n## ⭐ Главная мысль\nВода идёт туда, где солонее.\n")
+        (f / "shpora.md").write_text("# Осмос — шпора\n\n| Раствор | Эритроцит |\n|---|---|\n| гипо | лопается |\n")
         for cmd in (["add", "."], ["-c", "user.name=c", "-c", "user.email=c@c", "commit", "-q", "-m", "Конспект"], ["push", "-q", "origin", "HEAD:master"]):
             subprocess.run(["git", "-C", str(work), *cmd], check=True)
 
@@ -69,6 +70,9 @@ def main_test():
         page = client.get(f"/lessons/{lid}").text
         assert "Вода идёт туда, где солонее" in page
         assert client.get(f"/lessons/{lid}/print.pdf").content.startswith(b"%PDF")
+        assert "Шпора A7" in page
+        for fmt in ("A6", "A7"):
+            assert client.get(f"/lessons/{lid}/shpora.pdf?fmt={fmt}").content.startswith(b"%PDF"), fmt
         print("session flow OK:", folders[0].name)
 
         # Ручной путь с телефона: вставить конспект в форму

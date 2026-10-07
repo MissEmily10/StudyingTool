@@ -97,9 +97,9 @@ def publish(lesson: dict, transcript: str, materials: Path | None) -> str:
     return rel
 
 
-def collect_konspekts() -> dict[int, str]:
-    """Свежие konspekt.md из репозитория: {id урока на сервере: текст}."""
-    found: dict[int, str] = {}
+def collect_konspekts() -> dict[int, dict[str, str]]:
+    """Готовые конспекты и шпоры из репозитория: {id урока на сервере: {"konspekt": …, "shpora": …}}."""
+    found: dict[int, dict[str, str]] = {}
     with _lock:
         _ensure_clone()
         _pull()
@@ -111,5 +111,7 @@ def collect_konspekts() -> dict[int, str]:
                 lesson_id = int(json.loads(meta_path.read_text(encoding="utf-8"))["server_lesson_id"])
             except (ValueError, KeyError, json.JSONDecodeError):
                 continue
-            found[lesson_id] = konspekt.read_text(encoding="utf-8")
+            shpora = meta_path.parent / "shpora.md"
+            found[lesson_id] = {"konspekt": konspekt.read_text(encoding="utf-8"),
+                                "shpora": shpora.read_text(encoding="utf-8") if shpora.exists() else ""}
     return found

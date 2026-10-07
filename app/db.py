@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS lessons (
     stop_requested INTEGER NOT NULL DEFAULT 0,
     transcript TEXT NOT NULL DEFAULT '',
     konspekt TEXT NOT NULL DEFAULT '',
+    shpora TEXT NOT NULL DEFAULT '',
     error TEXT NOT NULL DEFAULT '',
     log TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
@@ -49,6 +50,9 @@ def connect() -> sqlite3.Connection:
 def init() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}
+        if "shpora" not in cols:  # база из прошлой версии
+            conn.execute("ALTER TABLE lessons ADD COLUMN shpora TEXT NOT NULL DEFAULT ''")
 
 
 def now() -> str:

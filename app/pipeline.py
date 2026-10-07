@@ -78,7 +78,9 @@ async def sync_loop() -> None:
     """Раз в несколько минут забираем из репозитория готовые конспекты."""
     while True:
         await asyncio.sleep(config.SYNC_MINUTES * 60)
-        waiting = [l["id"] for l in db.all_lessons() if l["status"] == "waiting"]
+        # ждём конспект, а у готовых уроков — шпору, если её дописали позже
+        waiting = [l["id"] for l in db.all_lessons()
+                   if l["status"] == "waiting" or (l["status"] == "done" and not l["shpora"])]
         if not waiting or not sync.enabled():
             continue
         try:
@@ -87,9 +89,16 @@ async def sync_loop() -> None:
             print("sync:", e)
             continue
         for lesson_id in waiting:
-            if lesson_id in found:
-                db.update(lesson_id, konspekt=found[lesson_id], status="done", error="")
-                db.log(lesson_id, "Конспект получен")
+            got = found.get(lesson_id)
+            if not got:
+                continue
+            lesson = db.get(lesson_id)
+            if lesson["status"] == "waiting":
+                db.update(lesson_id, konspekt=got["konspekt"], shpora=got["shpora"], status="done", error="")
+                db.log(lesson_id, "Конспект получен" + (" (и шпора)" if got["shpora"] else ""))
+            elif got["shpora"]:
+                db.update(lesson_id, shpora=got["shpora"])
+                db.log(lesson_id, "Шпора получена")
 
 
 async def worker() -> None:

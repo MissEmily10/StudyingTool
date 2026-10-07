@@ -20,6 +20,10 @@
       <a class="btn primary" href="/lessons/{{ l.id }}/print.pdf">🖨 PDF для печати (A5 ×2 на A4)</a>
       <a class="btn" href="/lessons/{{ l.id }}/konspekt.md">⬇ Markdown</a>
     {% endif %}
+    {% if l.shpora %}
+      <a class="btn" href="/lessons/{{ l.id }}/shpora.pdf?fmt=A6">📝 Шпора A6 (4 на A4)</a>
+      <a class="btn" href="/lessons/{{ l.id }}/shpora.pdf?fmt=A7">📝 Шпора A7 (8 на A4)</a>
+    {% endif %}
     {% if l.status in ("done", "error", "waiting") %}
       <form method="post" action="/lessons/{{ l.id }}/retry">
         <button class="btn">↻ Пересоздать конспект</button>
@@ -63,6 +67,13 @@
     <form method="post" action="/lessons/{{ l.id }}/edit">
       <textarea name="konspekt" rows="24" class="mono">{{ l.konspekt }}</textarea>
       <button class="btn primary">Сохранить</button>
+    </form>
+  </details>
+  <details>
+    <summary>📝 {% if l.shpora %}Редактировать шпору{% else %}Добавить шпору{% endif %}</summary>
+    <form method="post" action="/lessons/{{ l.id }}/shpora">
+      <textarea name="shpora" rows="14" class="mono" placeholder="Краткая шпора в Markdown">{{ l.shpora }}</textarea>
+      <button class="btn primary">Сохранить шпору</button>
     </form>
   </details>
 </section>

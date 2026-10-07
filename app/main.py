@@ -210,6 +210,27 @@ def download_md(lesson_id: int):
                     headers={"Content-Disposition": _content_disposition(_filename(lesson, ".md"))})
 
 
+@app.get("/lessons/{lesson_id}/shpora.pdf")
+async def download_shpora(lesson_id: int, fmt: str = "A6"):
+    lesson = lesson_or_404(lesson_id)
+    fmt = fmt.upper()
+    if fmt not in ("A6", "A7"):
+        raise HTTPException(400, "Формат шпоры: A6 или A7")
+    if not lesson["shpora"]:
+        raise HTTPException(404, "Шпоры ещё нет")
+    out = config.lesson_dir(lesson_id) / f"shpora_{fmt}.pdf"
+    await printing.build_print_pdf(lesson["shpora"], out, fmt)
+    return FileResponse(out, media_type="application/pdf",
+                        headers={"Content-Disposition": _content_disposition(_filename(lesson, f" шпора {fmt}.pdf"))})
+
+
+@app.post("/lessons/{lesson_id}/shpora")
+def edit_shpora(lesson_id: int, shpora: str = Form(...)):
+    lesson_or_404(lesson_id)
+    db.update(lesson_id, shpora=shpora.replace("\r\n", "\n").strip() + "\n")
+    return RedirectResponse(f"/lessons/{lesson_id}", status_code=303)
+
+
 @app.get("/lessons/{lesson_id}/print.pdf")
 async def download_pdf(lesson_id: int):
     lesson = lesson_or_404(lesson_id)
