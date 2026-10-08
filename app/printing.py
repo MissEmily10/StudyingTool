@@ -67,8 +67,12 @@ def prepare(md: str) -> str:
     md = re.sub(r"~~(.+?)~~", r"<del>\1</del>", md)
     # Python-Markdown требует пустую строку перед списком/таблицей после абзаца
     out = []
+    in_code = False
     for line in md.splitlines():
-        if out and LIST_OR_TABLE.match(line) and out[-1].strip() and not LIST_OR_TABLE.match(out[-1]):
+        if line.lstrip().startswith("```"):
+            in_code = not in_code
+        elif not in_code and out and LIST_OR_TABLE.match(line) and out[-1].strip() \
+                and not LIST_OR_TABLE.match(out[-1]):
             out.append("")
         out.append(line)
     return "\n".join(out)
