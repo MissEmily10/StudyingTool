@@ -39,12 +39,15 @@ if [ ! -f .env ]; then
   ask "Пароль для входа на сайт (Enter — придумаю сам)" APP_PASSWORD ""
   [ -n "$APP_PASSWORD" ] || APP_PASSWORD=$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 16)
   [ -n "${GITHUB_TOKEN:-}" ] || ask "Токен GitHub (github_pat_..., с правом Contents: Read and write)" GITHUB_TOKEN ""
+  ask "Токен Telegram-бота от @BotFather (Enter — пропустить)" TELEGRAM_BOT_TOKEN ""
+  ask "Токен Hugging Face для быстрых ответов (Enter — пропустить)" HF_TOKEN ""
   cp .env.example .env
-  python3 - "$BOT_NAME" "$APP_USER" "$APP_PASSWORD" "$GITHUB_TOKEN" <<'PY'
+  python3 - "$BOT_NAME" "$APP_USER" "$APP_PASSWORD" "$GITHUB_TOKEN" "$TELEGRAM_BOT_TOKEN" "$HF_TOKEN" <<'PY'
 import sys, re
-bot, user, pw, token = sys.argv[1:]
+bot, user, pw, token, tg, hf = sys.argv[1:]
 s = open(".env", encoding="utf-8").read()
-for k, v in (("BOT_NAME", bot), ("APP_USER", user), ("APP_PASSWORD", pw), ("GITHUB_TOKEN", token)):
+for k, v in (("BOT_NAME", bot), ("APP_USER", user), ("APP_PASSWORD", pw), ("GITHUB_TOKEN", token),
+             ("TELEGRAM_BOT_TOKEN", tg), ("HF_TOKEN", hf)):
     s = re.sub(rf"^{k}=.*$", f"{k}={v}", s, flags=re.M)
 open(".env", "w", encoding="utf-8").write(s)
 PY
@@ -66,6 +69,7 @@ check() {  # check "Название" URL [код, который означае
 check "MTS Link" https://my.mts-link.ru/
 check "GitHub" https://github.com/
 check "Электронный журнал" https://storage01.eljur.ru/
+check "Telegram" https://api.telegram.org/
 
 say "5/5 Собираю и запускаю (первый раз ~10 минут)"
 docker compose up -d --build

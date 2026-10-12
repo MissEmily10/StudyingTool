@@ -11,7 +11,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import config, db, pipeline, printing
+from . import bot, config, db, pipeline, printing
 
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=HERE / "templates")
@@ -34,7 +34,9 @@ def require_login(credentials: HTTPBasicCredentials | None = Depends(security)) 
 async def lifespan(_: FastAPI):
     db.init()
     tasks = pipeline.start()
+    await bot.start_bot()
     yield
+    await bot.stop_bot()
     for t in tasks:
         t.cancel()
 
@@ -178,12 +180,15 @@ async def retry(lesson_id: int, redo_transcript: str = Form("")):
 
 
 @app.post("/lessons/{lesson_id}/edit")
-def edit_konspekt(lesson_id: int, konspekt: str = Form(...)):
+async def edit_konspekt(lesson_id: int, konspekt: str = Form(...)):
     lesson = lesson_or_404(lesson_id)
     fields = {"konspekt": konspekt.replace("\r\n", "\n").strip() + "\n"}
-    if lesson["status"] in ("waiting", "error") and fields["konspekt"].strip():
+    became_done = lesson["status"] in ("waiting", "error") and bool(fields["konspekt"].strip())
+    if became_done:
         fields.update(status="done", error="")
     db.update(lesson_id, **fields)
+    if became_done:
+        bot.on_lesson_done(lesson_id)
     return RedirectResponse(f"/lessons/{lesson_id}", status_code=303)
 
 

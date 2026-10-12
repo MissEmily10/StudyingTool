@@ -40,6 +40,14 @@ SYNC_MINUTES = float(os.environ.get("SYNC_MINUTES", "3"))
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "high")
 
+# Telegram-бот (только для владельца: первый, кто напишет /start, становится владельцем)
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+# «Быстрый вопрос по материалу» — открытая модель через Hugging Face Inference Providers
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+HF_MODEL = os.environ.get("HF_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+HF_BASE_URL = os.environ.get("HF_BASE_URL", "https://router.huggingface.co/v1").rstrip("/")
+
 TIMEZONE = os.environ.get("TZ", "Europe/Moscow")
 
 

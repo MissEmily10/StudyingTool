@@ -40,6 +40,27 @@ CREATE TABLE IF NOT EXISTS lessons (
 """
 
 
+# Колонки, добавленные после первой версии (для старых баз добавляются при запуске)
+NEW_COLUMNS = {
+    "shpora": "TEXT NOT NULL DEFAULT ''",
+    "quiz": "TEXT NOT NULL DEFAULT ''",      # quiz.json: вопросы теста
+    "videos": "TEXT NOT NULL DEFAULT ''",    # videos.md: подборка видео
+    "notified": "INTEGER NOT NULL DEFAULT 0",  # конспект уже отправлен в Telegram
+}
+
+EXTRA_SCHEMA = """
+CREATE TABLE IF NOT EXISTS questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lesson_id INTEGER,
+    text TEXT NOT NULL,
+    answer TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new',   -- new → asked (ушёл Claude) → answered
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+"""
+
+
 def connect() -> sqlite3.Connection:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(config.DB_PATH, timeout=30)
@@ -50,9 +71,11 @@ def connect() -> sqlite3.Connection:
 def init() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        conn.executescript(EXTRA_SCHEMA)
         cols = {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}
-        if "shpora" not in cols:  # база из прошлой версии
-            conn.execute("ALTER TABLE lessons ADD COLUMN shpora TEXT NOT NULL DEFAULT ''")
+        for col, ddl in NEW_COLUMNS.items():  # база из прошлой версии
+            if col not in cols:
+                conn.execute(f"ALTER TABLE lessons ADD COLUMN {col} {ddl}")
 
 
 def now() -> str:
@@ -106,3 +129,38 @@ def due_scheduled(until_iso: str) -> list[dict]:
         ).fetchall()
     return [dict(r) for r in rows]
 
+
+
+def get_setting(key: str, default: str = "") -> str:
+    with connect() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row[0] if row else default
+
+
+def set_setting(key: str, value: str) -> None:
+    with connect() as conn:
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+
+def add_question(lesson_id: int | None, text: str, status: str = "new") -> int:
+    with connect() as conn:
+        cur = conn.execute("INSERT INTO questions (lesson_id, text, status, created_at) VALUES (?, ?, ?, ?)",
+                           (lesson_id, text, status, now()))
+        return int(cur.lastrowid)
+
+
+def questions(status: str) -> list[dict]:
+    with connect() as conn:
+        rows = conn.execute("SELECT * FROM questions WHERE status = ? ORDER BY id", (status,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def answer_question(qid: int, answer: str) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE questions SET answer = ?, status = 'answered' WHERE id = ?", (answer, qid))
+
+
+def set_question_status(qid: int, status: str) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE questions SET status = ? WHERE id = ?", (status, qid))

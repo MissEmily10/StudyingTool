@@ -7,3 +7,4 @@ httpx==0.28.1
 playwright==1.63.0
 markdown==3.11
 pypdf==6.19.0
+python-telegram-bot==22.8

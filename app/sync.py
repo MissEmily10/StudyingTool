@@ -111,7 +111,47 @@ def collect_konspekts() -> dict[int, dict[str, str]]:
                 lesson_id = int(json.loads(meta_path.read_text(encoding="utf-8"))["server_lesson_id"])
             except (ValueError, KeyError, json.JSONDecodeError):
                 continue
-            shpora = meta_path.parent / "shpora.md"
-            found[lesson_id] = {"konspekt": konspekt.read_text(encoding="utf-8"),
-                                "shpora": shpora.read_text(encoding="utf-8") if shpora.exists() else ""}
+            read = lambda name: (meta_path.parent / name).read_text(encoding="utf-8") \
+                if (meta_path.parent / name).exists() else ""  # noqa: E731
+            found[lesson_id] = {"konspekt": konspekt.read_text(encoding="utf-8"), "shpora": read("shpora.md"),
+                                "quiz": read("quiz.json"), "videos": read("videos.md")}
     return found
+
+
+def publish_questions(items: list[dict]) -> None:
+    """Вопросы для Claude → questions/<id>.json (с папкой урока, чтобы Claude взял материалы)."""
+    with _lock:
+        _ensure_clone()
+        for attempt in range(3):
+            _pull()
+            qdir = REPO_DIR / "questions"
+            qdir.mkdir(exist_ok=True)
+            for q in items:
+                data = {"id": q["id"], "question": q["text"], "lesson_folder": q.get("lesson_folder", ""),
+                        "asked_at": q["created_at"]}
+                (qdir / f"{q['id']:04d}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2),
+                                                         encoding="utf-8")
+            _git("add", "questions")
+            if not _git("status", "--porcelain", "questions").strip():
+                return
+            _git("commit", "-q", "-m", f"Вопросы: {len(items)}")
+            try:
+                _git("push", "-q", "origin", f"HEAD:{config.GIT_BRANCH}")
+                return
+            except RuntimeError:
+                if attempt == 2:
+                    raise
+
+
+def collect_answers() -> dict[int, str]:
+    """Ответы Claude: questions/<id>.answer.md → {id вопроса: текст}."""
+    with _lock:
+        _ensure_clone()
+        _pull()
+        found = {}
+        for path in (REPO_DIR / "questions").glob("*.answer.md"):
+            try:
+                found[int(path.name.split(".")[0])] = path.read_text(encoding="utf-8")
+            except ValueError:
+                continue
+        return found

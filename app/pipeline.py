@@ -79,26 +79,52 @@ async def sync_loop() -> None:
     while True:
         await asyncio.sleep(config.SYNC_MINUTES * 60)
         # ждём конспект, а у готовых уроков — шпору, если её дописали позже
-        waiting = [l["id"] for l in db.all_lessons()
-                   if l["status"] == "waiting" or (l["status"] == "done" and not l["shpora"])]
-        if not waiting or not sync.enabled():
+        if not sync.enabled():
             continue
         try:
-            found = await asyncio.to_thread(sync.collect_konspekts)
+            await sync_once()
         except Exception as e:
             print("sync:", e)
-            continue
+
+
+async def sync_once() -> None:
+    """Один проход обмена с репозиторием: конспекты/шпоры/тесты/видео и вопросы к Claude."""
+    from . import bot  # здесь, чтобы не было циклического импорта
+    # ждём конспект, а у готовых уроков — шпору, тест и видео, если их дописали позже
+    waiting = [l["id"] for l in db.all_lessons()
+               if l["status"] == "waiting" or (l["status"] == "done" and not (l["shpora"] and l["quiz"] and l["videos"]))]
+    if waiting:
+        found = await asyncio.to_thread(sync.collect_konspekts)
         for lesson_id in waiting:
             got = found.get(lesson_id)
             if not got:
                 continue
             lesson = db.get(lesson_id)
+            extras = {k: got[k] for k in ("shpora", "quiz", "videos") if got[k] and not lesson[k]}
             if lesson["status"] == "waiting":
-                db.update(lesson_id, konspekt=got["konspekt"], shpora=got["shpora"], status="done", error="")
-                db.log(lesson_id, "Конспект получен" + (" (и шпора)" if got["shpora"] else ""))
-            elif got["shpora"]:
-                db.update(lesson_id, shpora=got["shpora"])
-                db.log(lesson_id, "Шпора получена")
+                db.update(lesson_id, konspekt=got["konspekt"], status="done", error="", **extras)
+                db.log(lesson_id, "Конспект получен")
+                bot.on_lesson_done(lesson_id)
+            elif extras:
+                db.update(lesson_id, **extras)
+                db.log(lesson_id, "Получено: " + ", ".join(extras))
+
+    new_q = db.questions("new")
+    if new_q:
+        for q in new_q:
+            lesson = db.get(q["lesson_id"]) if q["lesson_id"] else None
+            q["lesson_folder"] = f"lessons/{sync.folder_name(lesson)}" if lesson else ""
+        await asyncio.to_thread(sync.publish_questions, new_q)
+        for q in new_q:
+            db.set_question_status(q["id"], "asked")
+    asked = db.questions("asked")
+    if asked:
+        answers = await asyncio.to_thread(sync.collect_answers)
+        for q in asked:
+            if q["id"] in answers:
+                db.answer_question(q["id"], answers[q["id"]])
+                q["answer"] = answers[q["id"]]
+                bot.on_answer(q)
 
 
 async def worker() -> None:
@@ -106,6 +132,9 @@ async def worker() -> None:
         lesson_id = await queue.get()
         try:
             await asyncio.to_thread(_process, lesson_id)
+            if db.get(lesson_id)["status"] == "done":
+                from . import bot
+                bot.on_lesson_done(lesson_id)
         except Exception as e:
             db.update(lesson_id, status="error", error=str(e)[:1000])
             db.log(lesson_id, f"Ошибка: {e}")
