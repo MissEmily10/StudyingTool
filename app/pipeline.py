@@ -162,12 +162,25 @@ async def _record_then_process(lesson_id: int) -> None:
         _recording_tasks.pop(lesson_id, None)
 
 
+def _schedule_next_week(lesson: dict) -> None:
+    """Повторяющийся урок: ставим такую же запись через неделю, а у текущей снимаем повтор."""
+    nxt = (datetime.fromisoformat(lesson["starts_at"]) + timedelta(days=7)).isoformat(timespec="seconds")
+    new_id = db.create(
+        subject=lesson["subject"], teacher=lesson["teacher"], webinar_url=lesson["webinar_url"],
+        starts_at=nxt, status="scheduled", wait_minutes=lesson["wait_minutes"], repeat_weekly=1,
+    )
+    db.update(lesson["id"], repeat_weekly=0)
+    db.log(lesson["id"], f"Следующая запись поставлена на {nxt[:16].replace('T', ' ')} (урок №{new_id})")
+
+
 async def scheduler() -> None:
     """Раз в 15 секунд запускает запись уроков, у которых подошло время (за 2 минуты до начала)."""
     while True:
         soon = (datetime.now() + timedelta(minutes=2)).isoformat(timespec="seconds")
         for lesson in db.due_scheduled(soon):
             if lesson["id"] not in _recording_tasks:
+                if lesson.get("repeat_weekly"):
+                    _schedule_next_week(lesson)
                 db.update(lesson["id"], status="joining")
                 _recording_tasks[lesson["id"]] = asyncio.create_task(_record_then_process(lesson["id"]))
         await asyncio.sleep(15)

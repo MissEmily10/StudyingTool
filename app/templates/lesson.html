@@ -6,6 +6,8 @@
   <h1>{{ l.subject }}{% if l.title %}. {{ l.title }}{% endif %}</h1>
   <p class="muted">
     {% if l.teacher %}{{ l.teacher }} · {% endif %}{{ (l.starts_at or l.created_at) | dt }}
+    {% if l.wait_minutes %} · начало может сдвинуться до {{ l.wait_minutes }} мин{% endif %}
+    {% if l.repeat_weekly %} · 🔁 каждую неделю{% endif %}
   </p>
   <p>Статус: <span id="status" class="badge s-{{ l.status }}">{{ STATUSES.get(l.status, l.status) }}</span></p>
   {% if l.error %}<p class="error">⚠️ {{ l.error }}</p>{% endif %}

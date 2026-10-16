@@ -22,7 +22,16 @@
         <label class="inline"><input type="radio" name="start_mode" value="at"> по расписанию:</label>
         <input type="datetime-local" name="starts_at" value="{{ now }}">
       </div>
-      <p class="hint">Бот зайдёт за 2 минуты до начала, запишет звук и остановится, когда эфир закончится.</p>
+      <div class="choices">
+        <label class="inline">Начало может сдвинуться на
+          <select name="wait_minutes">
+            <option value="0">нет</option><option value="30">до 30 мин</option>
+            <option value="60">до 1 часа</option><option value="90">до 1,5 часа</option>
+          </select></label>
+        <label class="inline"><input type="checkbox" name="repeat_weekly" value="true"> каждую неделю</label>
+      </div>
+      <p class="hint">Бот зайдёт за 2 минуты до начала, запишет звук и остановится, когда эфир закончится.
+        Если время плавает (например, 17:30 или 18:30), ставьте самое раннее и сдвиг «до 1 часа»: бот подождёт, пока урок начнётся, а тишину до начала обрежет.</p>
     </fieldset>
 
     <details>

@@ -7,6 +7,7 @@
 import asyncio
 import base64
 import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -65,6 +66,22 @@ class Recording:
             if p != best:
                 p.unlink(missing_ok=True)
         return target
+
+
+def trim_leading(audio: Path, seconds: float, rec: Recording) -> Path:
+    """Обрезает ожидание до начала урока (плавающий график), чтобы таймкоды шли от начала урока."""
+    tmp = audio.with_name("trimmed" + audio.suffix)
+    res = subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{seconds:.0f}", "-i", str(audio), "-c", "copy", str(tmp)],
+        capture_output=True, text=True,
+    )
+    if res.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0:
+        rec.log(f"Не удалось обрезать ожидание: {res.stderr.strip()[:200]}")
+        tmp.unlink(missing_ok=True)
+        return audio
+    tmp.replace(audio)
+    rec.log(f"Обрезано ожидание до начала урока: {seconds / 60:.0f} мин")
+    return audio
 
 
 async def screenshot(page: Page, rec: Recording) -> None:
@@ -175,6 +192,8 @@ async def record(lesson_id: int) -> Path | None:
 
         started = time.monotonic()
         recording_since: float | None = None
+        first_sound: float | None = None
+        wait_min = int(lesson.get("wait_minutes") or 0)  # плавающий график: урок может начаться позже
         last_shot = 0.0
         clicked: dict[str, int] = {}
         stop_reason = ""
@@ -190,11 +209,19 @@ async def record(lesson_id: int) -> Path | None:
                 if db.get(lesson_id)["stop_requested"]:
                     stop_reason = "остановлено вручную"
                     break
-                if now - started > config.MAX_RECORD_MINUTES * 60:
+                # Лимит длины считаем от начала урока (первого звука), а не от входа в комнату
+                if now - (first_sound or started) > config.MAX_RECORD_MINUTES * 60:
                     stop_reason = f"прошло {config.MAX_RECORD_MINUTES} мин (максимум)"
+                    break
+                if wait_min and first_sound is None and now - started > (wait_min + 20) * 60:
+                    stop_reason = f"урок так и не начался за {wait_min + 20} мин"
                     break
 
                 state = await capture_state(page)
+                if first_sound is None and state["last_sound"]:
+                    first_sound = now
+                    if recording_since is not None and now - recording_since > 120:
+                        rec.log("Урок начался — слышен голос")
                 if recording_since is None:
                     if state["tracks"] and rec.bytes > 0:
                         recording_since = now
@@ -224,6 +251,10 @@ async def record(lesson_id: int) -> Path | None:
             await browser.close()
 
     audio = rec.finalize()
+    if audio and recording_since is not None and first_sound is not None:
+        lead = first_sound - recording_since - 15  # оставляем 15 с запаса до первого звука
+        if lead > 60:
+            audio = trim_leading(audio, lead, rec)
     mb = rec.bytes / 1_000_000
     rec.log(f"Запись остановлена: {stop_reason}. Записано {mb:.1f} МБ")
     return audio

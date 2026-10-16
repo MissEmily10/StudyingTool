@@ -84,6 +84,8 @@ async def create_lesson(
     materials_url: str = Form(""),
     start_mode: str = Form("now"),
     starts_at: str = Form(""),
+    wait_minutes: int = Form(0),
+    repeat_weekly: bool = Form(False),
     audio_file: UploadFile | None = File(None),
     materials_file: UploadFile | None = File(None),
 ):
@@ -103,6 +105,8 @@ async def create_lesson(
         subject=subject.strip(), title=title.strip(), teacher=teacher.strip(), notes=notes.strip(),
         webinar_url=webinar_url, materials_url=materials_url, starts_at=start,
         status="scheduled" if start else "queued",
+        wait_minutes=max(0, min(wait_minutes, 180)) if start else 0,
+        repeat_weekly=int(bool(repeat_weekly and start and start_mode == "at")),
     )
     folder = config.lesson_dir(lesson_id)
     if has_audio:

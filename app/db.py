@@ -46,6 +46,8 @@ NEW_COLUMNS = {
     "quiz": "TEXT NOT NULL DEFAULT ''",      # quiz.json: вопросы теста
     "videos": "TEXT NOT NULL DEFAULT ''",    # videos.md: подборка видео
     "notified": "INTEGER NOT NULL DEFAULT 0",  # конспект уже отправлен в Telegram
+    "wait_minutes": "INTEGER NOT NULL DEFAULT 0",  # начало может сдвинуться на столько минут (плавающий график)
+    "repeat_weekly": "INTEGER NOT NULL DEFAULT 0",  # повторять запись каждую неделю
 }
 
 EXTRA_SCHEMA = """
